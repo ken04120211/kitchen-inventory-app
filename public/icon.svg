@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+  <!-- Background -->
+  <rect width="108" height="108" rx="20" fill="#388E3C"/>
+  <!-- Fridge body (white) -->
+  <rect x="24" y="18" width="60" height="72" rx="6" fill="white"/>
+  <!-- Freezer section (light gray) -->
+  <rect x="24" y="18" width="60" height="28" rx="6" fill="#F0F0F0"/>
+  <rect x="24" y="37" width="60" height="9" fill="#F0F0F0"/>
+  <!-- Freezer divider -->
+  <rect x="24" y="46" width="60" height="4" fill="#BDBDBD"/>
+  <!-- Top handle -->
+  <rect x="60" y="26" width="8" height="18" rx="2" fill="#BDBDBD"/>
+  <!-- Bottom handle -->
+  <rect x="60" y="56" width="8" height="26" rx="2" fill="#BDBDBD"/>
+  <!-- Checkmark 1 -->
+  <polyline points="28,60 33,66 42,53" fill="none" stroke="#4CAF50" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- List line 1 -->
+  <rect x="46" y="55" width="12" height="4" rx="2" fill="#DDDDDD"/>
+  <!-- Checkmark 2 -->
+  <polyline points="28,73 33,79 42,66" fill="none" stroke="#4CAF50" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- List line 2 -->
+  <rect x="46" y="68" width="10" height="4" rx="2" fill="#DDDDDD"/>
+  <!-- Empty checkbox 3 -->
+  <rect x="28" y="82" width="12" height="8" rx="1.5" fill="none" stroke="#BDBDBD" stroke-width="2"/>
+  <!-- List line 3 -->
+  <rect x="46" y="84" width="10" height="4" rx="2" fill="#DDDDDD"/>
+</svg>
