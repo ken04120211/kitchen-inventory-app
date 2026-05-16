@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import { X, Copy, Check, Plus, Trash2, ShoppingCart } from "lucide-react";
 import { FoodItem } from "@/types";
-import { InventoryStorage } from "@/lib/storage";
 import { getCategoryIcon } from "@/lib/utils";
 
 interface ShoppingListModalProps {
@@ -39,8 +38,18 @@ function buildSuggestions(items: FoodItem[]): ListItem[] {
     });
   };
 
-  InventoryStorage.getExpiredItems().forEach(i => addItem(i, "期限切れ", "bg-red-100 text-red-700"));
-  InventoryStorage.getExpiringItems(3).forEach(i => addItem(i, "期限間近", "bg-orange-100 text-orange-700"));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const in3Days = new Date(today);
+  in3Days.setDate(in3Days.getDate() + 3);
+
+  items.filter((i) => i.expiry && new Date(i.expiry) < today)
+    .forEach(i => addItem(i, "期限切れ", "bg-red-100 text-red-700"));
+  items.filter((i) => {
+    if (!i.expiry) return false;
+    const d = new Date(i.expiry);
+    return d >= today && d <= in3Days;
+  }).forEach(i => addItem(i, "期限間近", "bg-orange-100 text-orange-700"));
   items.filter(i => i.quantity <= 0).forEach(i => addItem(i, "在庫なし", "bg-red-100 text-red-700"));
   items.filter(i => i.quantity > 0 && i.quantity <= 3).forEach(i => addItem(i, "在庫少", "bg-yellow-100 text-yellow-700"));
 

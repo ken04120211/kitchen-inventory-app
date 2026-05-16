@@ -4,7 +4,7 @@ import { FoodItem, FoodCategory, Unit } from "@/types";
 
 interface ItemModalProps {
   item?: FoodItem | null;
-  onSave: (item: Omit<FoodItem, "id" | "createdAt" | "updatedAt">) => boolean;
+  onSave: (item: Omit<FoodItem, "id" | "createdAt" | "updatedAt">) => Promise<void>;
   onClose: () => void;
 }
 
@@ -75,21 +75,19 @@ export default function ItemModal({ item, onSave, onClose }: ItemModalProps) {
     return newErrors.length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-
-    const success = onSave({
-      name: formData.name.trim(),
-      category: formData.category as FoodCategory,
-      quantity: formData.quantity,
-      unit: formData.unit,
-      expiry: formData.expiry || undefined,
-      note: formData.note.trim() || undefined
-    });
-
-    if (!success) {
+    try {
+      await onSave({
+        name: formData.name.trim(),
+        category: formData.category as FoodCategory,
+        quantity: formData.quantity,
+        unit: formData.unit,
+        expiry: formData.expiry || undefined,
+        note: formData.note.trim() || undefined,
+      });
+    } catch {
       setErrors(["保存に失敗しました"]);
     }
   };
