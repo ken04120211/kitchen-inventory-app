@@ -21,6 +21,7 @@ import AlertsSection from "@/components/AlertsSection";
 import FilterControls from "@/components/FilterControls";
 import ReceiptPreviewModal from "@/components/ReceiptPreviewModal";
 import ShoppingListModal from "@/components/ShoppingListModal";
+import SettingsModal from "@/components/SettingsModal";
 
 export default function Home() {
   const { user, loading: authLoading, logout } = useAuth();
@@ -39,6 +40,7 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FoodItem | null>(null);
   const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   const [scannedItems, setScannedItems] = useState<ParsedReceiptItem[] | null>(null);
@@ -213,10 +215,9 @@ export default function Home() {
           onAddItem={handleAddItem}
           onScanReceipt={handleScanReceipt}
           onOpenShoppingList={() => setIsShoppingListOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
           familyName={family?.name}
           userName={user.displayName ?? undefined}
-          inviteCode={family?.inviteCode}
-          onLogout={logout}
         />
 
         {/* スキャン進捗オーバーレイ */}
@@ -285,6 +286,22 @@ export default function Home() {
           <ShoppingListModal
             items={items}
             onClose={() => setIsShoppingListOpen(false)}
+          />
+        )}
+
+        {isSettingsOpen && family && (
+          <SettingsModal
+            user={user}
+            family={family}
+            onClose={() => setIsSettingsOpen(false)}
+            onFamilyNameUpdate={(name) => setFamily((f) => f ? { ...f, name } : f)}
+            onLeaveFamily={() => {
+              setFamilyId(null);
+              setFamily(null);
+              setItems([]);
+              setIsSettingsOpen(false);
+            }}
+            onLogout={logout}
           />
         )}
       </div>

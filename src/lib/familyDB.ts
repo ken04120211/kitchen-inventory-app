@@ -8,6 +8,8 @@ import {
   updateDoc,
   where,
   arrayUnion,
+  arrayRemove,
+  deleteField,
 } from "firebase/firestore";
 import { User } from "firebase/auth";
 import { db } from "@/lib/firebase";
@@ -101,4 +103,16 @@ export async function getFamily(familyId: string): Promise<Family | null> {
   const snap = await getDoc(doc(db, "families", familyId));
   if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() } as Family;
+}
+
+export async function updateFamilyName(familyId: string, name: string): Promise<void> {
+  await updateDoc(doc(db, "families", familyId), { name });
+}
+
+export async function leaveFamily(uid: string, familyId: string): Promise<void> {
+  await updateDoc(doc(db, "families", familyId), {
+    memberIds: arrayRemove(uid),
+    [`members.${uid}`]: deleteField(),
+  });
+  await updateDoc(doc(db, "users", uid), { familyId: null });
 }
