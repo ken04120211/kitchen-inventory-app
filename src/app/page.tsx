@@ -11,6 +11,7 @@ import ItemModal from "@/components/ItemModal";
 import AlertsSection from "@/components/AlertsSection";
 import FilterControls from "@/components/FilterControls";
 import ReceiptPreviewModal from "@/components/ReceiptPreviewModal";
+import ShoppingListModal from "@/components/ShoppingListModal";
 
 export default function Home() {
   const [items, setItems] = useState<FoodItem[]>([]);
@@ -22,6 +23,7 @@ export default function Home() {
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FoodItem | null>(null);
+  const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
 
   // レシートスキャン状態
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
@@ -115,7 +117,11 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-6 max-w-6xl">
-        <Header onAddItem={handleAddItem} onScanReceipt={handleScanReceipt} />
+        <Header
+          onAddItem={handleAddItem}
+          onScanReceipt={handleScanReceipt}
+          onOpenShoppingList={() => setIsShoppingListOpen(true)}
+        />
 
         {/* スキャン進捗オーバーレイ */}
         {scanProgress && progressLabel && (
@@ -166,6 +172,13 @@ export default function Home() {
             items={scannedItems}
             onConfirm={handleConfirmScannedItems}
             onClose={() => setScannedItems(null)}
+          />
+        )}
+
+        {isShoppingListOpen && (
+          <ShoppingListModal
+            items={items}
+            onClose={() => setIsShoppingListOpen(false)}
           />
         )}
       </div>
