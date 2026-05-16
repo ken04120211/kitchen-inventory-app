@@ -56,6 +56,13 @@ export default function Home() {
     if (InventoryStorage.deleteItem(id)) loadItems();
   };
 
+  const handleConsumeItem = (id: string) => {
+    const item = items.find(i => i.id === id);
+    if (!item || item.quantity <= 0) return;
+    InventoryStorage.updateItem(id, { quantity: item.quantity - 1 });
+    loadItems();
+  };
+
   const handleSaveItem = (itemData: Omit<FoodItem, "id" | "createdAt" | "updatedAt">) => {
     const success = editingItem
       ? InventoryStorage.updateItem(editingItem.id, itemData)
@@ -143,6 +150,7 @@ export default function Home() {
           items={filteredItems}
           onEditItem={handleEditItem}
           onDeleteItem={handleDeleteItem}
+          onConsumeItem={handleConsumeItem}
         />
 
         {isModalOpen && (
