@@ -5,9 +5,10 @@ interface InventoryGridProps {
   items: FoodItem[];
   onEditItem: (item: FoodItem) => void;
   onDeleteItem: (id: string) => void;
+  onConsumeItem: (id: string) => void;
 }
 
-export default function InventoryGrid({ items, onEditItem, onDeleteItem }: InventoryGridProps) {
+export default function InventoryGrid({ items, onEditItem, onDeleteItem, onConsumeItem }: InventoryGridProps) {
   if (items.length === 0) {
     return (
       <div className="text-center py-16">
@@ -26,6 +27,7 @@ export default function InventoryGrid({ items, onEditItem, onDeleteItem }: Inven
           item={item}
           onEdit={() => onEditItem(item)}
           onDelete={() => onDeleteItem(item.id)}
+          onConsume={() => onConsumeItem(item.id)}
         />
       ))}
     </div>

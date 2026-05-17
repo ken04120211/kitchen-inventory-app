@@ -1,6 +1,5 @@
 import { AlertTriangle, Calendar, Package } from "lucide-react";
 import { FoodItem } from "@/types";
-import { InventoryStorage } from "@/lib/storage";
 import { getRelativeDate } from "@/lib/utils";
 
 interface AlertsSectionProps {
@@ -8,9 +7,21 @@ interface AlertsSectionProps {
 }
 
 export default function AlertsSection({ items }: AlertsSectionProps) {
-  const lowStockItems = InventoryStorage.getLowStockItems();
-  const expiringItems = InventoryStorage.getExpiringItems();
-  const expiredItems = InventoryStorage.getExpiredItems();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const in7Days = new Date(today);
+  in7Days.setDate(in7Days.getDate() + 7);
+
+  const expiredItems = items.filter((i) => {
+    if (!i.expiry) return false;
+    return new Date(i.expiry) < today;
+  });
+  const expiringItems = items.filter((i) => {
+    if (!i.expiry) return false;
+    const d = new Date(i.expiry);
+    return d >= today && d <= in7Days;
+  });
+  const lowStockItems = items.filter((i) => i.quantity <= 3);
 
   if (lowStockItems.length === 0 && expiringItems.length === 0 && expiredItems.length === 0) {
     return null;
