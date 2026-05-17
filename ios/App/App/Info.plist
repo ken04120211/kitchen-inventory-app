@@ -51,5 +51,7 @@
 	<string>レシートを撮影して食材を自動登録するために使用します</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>レシートの写真から食材を登録するために使用します</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>撮影した写真をフォトライブラリに保存するために使用します</string>
 </dict>
 </plist>

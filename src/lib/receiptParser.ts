@@ -1,4 +1,4 @@
-import { FoodCategory, Unit } from "@/types";
+import { FoodCategory, Unit, KnownItem } from "@/types";
 
 export type ParsedReceiptItem = {
   name: string;
@@ -95,6 +95,45 @@ function extractQuantityAndUnit(text: string): { quantity: number; unit: Unit; c
   return { quantity: 1, unit: "個", cleanedText: text };
 }
 
+function bigramSimilarity(a: string, b: string): number {
+  const normalize = (s: string) => s.replace(/\s+/g, "").toLowerCase();
+  const na = normalize(a);
+  const nb = normalize(b);
+  if (na === nb) return 1;
+  if (na.length < 2 || nb.length < 2) return na === nb ? 1 : 0;
+  const counts = new Map<string, number>();
+  for (let i = 0; i < na.length - 1; i++) {
+    const bg = na.slice(i, i + 2);
+    counts.set(bg, (counts.get(bg) ?? 0) + 1);
+  }
+  let intersect = 0;
+  for (let i = 0; i < nb.length - 1; i++) {
+    const bg = nb.slice(i, i + 2);
+    const c = counts.get(bg) ?? 0;
+    if (c > 0) { counts.set(bg, c - 1); intersect++; }
+  }
+  return (2 * intersect) / (na.length + nb.length - 2);
+}
+
+function matchKnownItem(line: string, knownItems: KnownItem[]): KnownItem | null {
+  const normalized = line.replace(/\s+/g, "").toLowerCase();
+  let best: { item: KnownItem; score: number } | null = null;
+  for (const item of knownItems) {
+    const candidates = [item.name, ...item.aliases];
+    for (const candidate of candidates) {
+      const cn = candidate.replace(/\s+/g, "").toLowerCase();
+      if (normalized.includes(cn) || cn.includes(normalized)) {
+        return item;
+      }
+      const score = bigramSimilarity(normalized, cn);
+      if (score >= 0.6 && (!best || score > best.score)) {
+        best = { item, score };
+      }
+    }
+  }
+  return best?.item ?? null;
+}
+
 function cleanProductName(text: string): string {
   return text
     .replace(/[¥￥]\s*[\d,，]+/g, "")
@@ -116,13 +155,27 @@ function shouldSkipLine(line: string): boolean {
   return skipKeywords.some(kw => line.includes(kw));
 }
 
-export function parseReceiptText(rawText: string): ParsedReceiptItem[] {
+export function parseReceiptText(rawText: string, knownItems: KnownItem[] = []): ParsedReceiptItem[] {
   const lines = rawText.split("\n").map(l => l.trim()).filter(Boolean);
   const items: ParsedReceiptItem[] = [];
   const seenNames = new Set<string>();
 
   for (const line of lines) {
     if (shouldSkipLine(line)) continue;
+
+    const matched = matchKnownItem(line, knownItems);
+    if (matched) {
+      if (seenNames.has(matched.name)) continue;
+      seenNames.add(matched.name);
+      const { quantity } = extractQuantityAndUnit(line);
+      items.push({
+        name: matched.name,
+        category: matched.category,
+        quantity,
+        unit: matched.unit,
+      });
+      continue;
+    }
 
     const { quantity, unit, cleanedText } = extractQuantityAndUnit(line);
     const name = cleanProductName(cleanedText);

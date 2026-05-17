@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   description: "食材・調味料・レトルト・カップ麺の在庫管理ができるWebアプリ",
 };
 
+export const viewport = {
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

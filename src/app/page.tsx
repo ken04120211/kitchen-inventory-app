@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FoodItem, InventoryFilters } from "@/types";
+import { FoodItem, InventoryFilters, KnownItem } from "@/types";
 import { InventoryStorage } from "@/lib/storage";
+import { KnownItemsStorage } from "@/lib/knownItemsStorage";
 import { scanReceipt, ScanProgress } from "@/lib/receiptScanner";
 import { ParsedReceiptItem } from "@/lib/receiptParser";
 import Header from "@/components/Header";
@@ -11,6 +12,7 @@ import ItemModal from "@/components/ItemModal";
 import AlertsSection from "@/components/AlertsSection";
 import FilterControls from "@/components/FilterControls";
 import ReceiptPreviewModal from "@/components/ReceiptPreviewModal";
+import KnownItemsModal from "@/components/KnownItemsModal";
 
 export default function Home() {
   const [items, setItems] = useState<FoodItem[]>([]);
@@ -22,6 +24,8 @@ export default function Home() {
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FoodItem | null>(null);
+  const [isKnownItemsOpen, setIsKnownItemsOpen] = useState(false);
+  const [knownItems, setKnownItems] = useState<KnownItem[]>([]);
 
   // レシートスキャン状態
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
@@ -32,7 +36,10 @@ export default function Home() {
     setItems(InventoryStorage.getItems());
   };
 
-  useEffect(() => { loadItems(); }, []);
+  useEffect(() => {
+    loadItems();
+    setKnownItems(KnownItemsStorage.getItems());
+  }, []);
 
   useEffect(() => {
     let result = items;
@@ -76,7 +83,7 @@ export default function Home() {
   const handleScanReceipt = async () => {
     setScanError(null);
     try {
-      const detected = await scanReceipt(setScanProgress);
+      const detected = await scanReceipt(setScanProgress, knownItems);
       setScannedItems(detected);
     } catch (err) {
       if (err instanceof Error && err.message.includes("cancelled")) return;
@@ -108,7 +115,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-6 max-w-6xl">
-        <Header onAddItem={handleAddItem} onScanReceipt={handleScanReceipt} />
+        <Header onAddItem={handleAddItem} onScanReceipt={handleScanReceipt} onOpenKnownItems={() => setIsKnownItemsOpen(true)} />
 
         {/* スキャン進捗オーバーレイ */}
         {scanProgress && progressLabel && (
@@ -158,6 +165,14 @@ export default function Home() {
             items={scannedItems}
             onConfirm={handleConfirmScannedItems}
             onClose={() => setScannedItems(null)}
+          />
+        )}
+
+        {isKnownItemsOpen && (
+          <KnownItemsModal
+            items={knownItems}
+            onChange={setKnownItems}
+            onClose={() => setIsKnownItemsOpen(false)}
           />
         )}
       </div>

@@ -46,3 +46,12 @@ export interface Alert {
 
 export type StockStatus = "normal" | "low" | "out";
 export type ExpiryStatus = "normal" | "warning" | "danger" | "expired";
+
+export interface KnownItem {
+  id: string;
+  name: string;
+  aliases: string[];
+  category: FoodCategory;
+  unit: Unit;
+  defaultQuantity: number;
+}

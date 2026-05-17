@@ -1,5 +1,6 @@
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import { parseReceiptText, ParsedReceiptItem } from "./receiptParser";
+import { KnownItem } from "@/types";
 
 export type ScanProgress = {
   status: "camera" | "loading" | "recognizing" | "done";
@@ -7,7 +8,8 @@ export type ScanProgress = {
 };
 
 export async function scanReceipt(
-  onProgress?: (p: ScanProgress) => void
+  onProgress?: (p: ScanProgress) => void,
+  knownItems: KnownItem[] = []
 ): Promise<ParsedReceiptItem[]> {
   onProgress?.({ status: "camera", percent: 0 });
 
@@ -42,7 +44,7 @@ export async function scanReceipt(
   const text = result.data.text;
   if (!text.trim()) throw new Error("テキストを読み取れませんでした");
 
-  const items = parseReceiptText(text);
+  const items = parseReceiptText(text, knownItems);
   if (items.length === 0) throw new Error("食材を検出できませんでした");
 
   return items;
