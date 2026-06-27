@@ -7,6 +7,7 @@ import {
   onAuthStateChanged,
   signInWithCredential,
   signInWithPopup,
+  browserPopupRedirectResolver,
   signOut,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -129,7 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } else {
       // Web: Firebase Web SDK のポップアップ認証
-      await signInWithPopup(auth, new GoogleAuthProvider());
+      // browserPopupRedirectResolverをここで渡す（initializeAuth未設定のため必要）
+      await signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver);
     }
   };
 
