@@ -6,6 +6,7 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithCredential,
+  signInWithPopup,
   signOut,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -69,9 +70,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       () => { setLoading(false); }
     );
 
-    // ネイティブ認証状態をプラグインから監視（iOS用）
+    // ネイティブ認証状態をプラグインから監視（iOS/Android のみ）
     let removeNativeListener: (() => void) | null = null;
     const setupNativeListener = async () => {
+      const { Capacitor } = await import("@capacitor/core");
+      if (!Capacitor.isNativePlatform()) return;
       const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
       const handle = await FirebaseAuthentication.addListener("authStateChange", (result) => {
         if (result.user) {
@@ -104,28 +107,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
-    const result = await FirebaseAuthentication.signInWithGoogle();
+    const { Capacitor } = await import("@capacitor/core");
 
-    // ネイティブ認証成功後、Firebase JS SDK（Firestore用）へも認証を試みる
-    const idToken = result.credential?.idToken ?? null;
-    const accessToken = result.credential?.accessToken ?? null;
-    if (!idToken && !accessToken) return;
+    if (Capacitor.isNativePlatform()) {
+      // iOS/Android: ネイティブプラグイン経由
+      const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+      const result = await FirebaseAuthentication.signInWithGoogle();
 
-    const credential = GoogleAuthProvider.credential(idToken, accessToken ?? undefined);
-    for (let i = 0; i < 3; i++) {
-      try {
-        await signInWithCredential(auth, credential);
-        return;
-      } catch {
-        if (i < 2) await new Promise(r => setTimeout(r, (i + 1) * 2000));
+      const idToken = result.credential?.idToken ?? null;
+      const accessToken = result.credential?.accessToken ?? null;
+      if (!idToken && !accessToken) return;
+
+      const credential = GoogleAuthProvider.credential(idToken, accessToken ?? undefined);
+      for (let i = 0; i < 3; i++) {
+        try {
+          await signInWithCredential(auth, credential);
+          return;
+        } catch {
+          if (i < 2) await new Promise(r => setTimeout(r, (i + 1) * 2000));
+        }
       }
+    } else {
+      // Web: Firebase Web SDK のポップアップ認証
+      await signInWithPopup(auth, new GoogleAuthProvider());
     }
   };
 
   const logout = async () => {
-    const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
-    await FirebaseAuthentication.signOut().catch(() => {});
+    const { Capacitor } = await import("@capacitor/core");
+    if (Capacitor.isNativePlatform()) {
+      const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+      await FirebaseAuthentication.signOut().catch(() => {});
+    }
     await signOut(auth);
     clearQuickAuth();
     setQuickAuth(null);
