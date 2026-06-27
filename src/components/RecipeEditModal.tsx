@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { X, Plus, Trash2, Camera, ImageIcon, XCircle } from "lucide-react";
 import { Recipe, RecipeIngredient, Unit } from "@/types";
 
@@ -9,7 +9,7 @@ const UNIT_OPTIONS: Unit[] = ["個", "本", "袋", "パック", "kg", "g", "L", 
 interface PendingImage {
   blob: Blob;
   ext: string;
-  preview: string; // object URL for display
+  preview: string;
 }
 
 interface Props {
@@ -25,7 +25,7 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
   const [name, setName] = useState(recipe?.name ?? "");
   const [defaultServings, setDefaultServings] = useState(recipe?.defaultServings ?? 2);
   const [memo, setMemo] = useState(recipe?.memo ?? "");
-  const [imageUrl, setImageUrl] = useState(recipe?.imageUrl ?? ""); // already-saved URL
+  const [imageUrl, setImageUrl] = useState(recipe?.imageUrl ?? "");
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>(
     recipe?.ingredients.length ? recipe.ingredients : [emptyIngredient()]
@@ -33,7 +33,15 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // マウント後にネイティブかどうかを確定（SSR対策）
+  const [isNative, setIsNative] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    import("@capacitor/core").then(({ Capacitor }) => {
+      setIsNative(Capacitor.isNativePlatform());
+    });
+  }, []);
 
   const updateIngredient = (i: number, patch: Partial<RecipeIngredient>) =>
     setIngredients((prev) => prev.map((ing, idx) => (idx === i ? { ...ing, ...patch } : ing)));
@@ -46,21 +54,17 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
     setImageUrl("");
   };
 
-  // Web: file input
+  // Web: file input change
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (pendingImage) URL.revokeObjectURL(pendingImage.preview);
     const ext = file.type === "image/png" ? "png" : "jpeg";
-    setPendingImage({
-      blob: file,
-      ext,
-      preview: URL.createObjectURL(file),
-    });
+    setPendingImage({ blob: file, ext, preview: URL.createObjectURL(file) });
     e.target.value = "";
   };
 
-  // iOS: Capacitor Camera
+  // iOS Native: Capacitor Camera
   const handleCameraCapture = async () => {
     try {
       const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
@@ -77,16 +81,7 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
       if (pendingImage) URL.revokeObjectURL(pendingImage.preview);
       setPendingImage({ blob, ext, preview: photo.dataUrl });
     } catch {
-      // ユーザーがキャンセルした場合など
-    }
-  };
-
-  const handlePickImage = async () => {
-    const { Capacitor } = await import("@capacitor/core");
-    if (Capacitor.isNativePlatform()) {
-      await handleCameraCapture();
-    } else {
-      fileInputRef.current?.click();
+      // キャンセル等
     }
   };
 
@@ -100,7 +95,6 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
     try {
       let finalImageUrl: string | undefined = imageUrl || undefined;
 
-      // 新しい画像がある場合はアップロード
       if (pendingImage) {
         setUploading(true);
         const { uploadRecipeImage } = await import("@/lib/recipeStorage");
@@ -127,6 +121,18 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
   };
 
   const previewSrc = pendingImage?.preview ?? (imageUrl || null);
+
+  // Web版: <label> でファイル入力を直接開く（iOS Safariではawait後のclick()が無効なため）
+  const ImagePickerButton = ({ className, children }: { className: string; children: React.ReactNode }) =>
+    isNative ? (
+      <button type="button" onClick={handleCameraCapture} className={className}>
+        {children}
+      </button>
+    ) : (
+      <label htmlFor="recipe-image-file-input" className={`${className} cursor-pointer`}>
+        {children}
+      </label>
+    );
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
@@ -165,6 +171,7 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
             <label className="block text-sm font-medium text-gray-700 mb-1">基本人数</label>
             <div className="flex items-center gap-3">
               <button
+                type="button"
                 onClick={() => setDefaultServings((v) => Math.max(1, v - 1))}
                 className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-bold"
               >
@@ -172,6 +179,7 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
               </button>
               <span className="text-xl font-semibold w-8 text-center">{defaultServings}</span>
               <button
+                type="button"
                 onClick={() => setDefaultServings((v) => Math.min(20, v + 1))}
                 className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-bold"
               >
@@ -183,7 +191,21 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
 
           {/* 料理画像 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">料理の写真（任意）</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              料理の写真（任意）
+            </label>
+
+            {/* Web用隠しファイルinput（ネイティブでは使わないが常にrenderする） */}
+            <input
+              id="recipe-image-file-input"
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
             {previewSrc ? (
               <div className="relative">
                 <img
@@ -192,37 +214,26 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
                   className="w-full h-40 object-cover rounded-xl"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
+                {/* 削除ボタン */}
                 <button
+                  type="button"
                   onClick={clearImage}
                   className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-colors"
                 >
                   <XCircle size={20} />
                 </button>
-                <button
-                  onClick={handlePickImage}
-                  className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-black/50 hover:bg-black/70 text-white text-xs px-2.5 py-1.5 rounded-lg transition-colors"
-                >
+                {/* 変更ボタン */}
+                <ImagePickerButton className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-black/50 hover:bg-black/70 text-white text-xs px-2.5 py-1.5 rounded-lg transition-colors">
                   <Camera size={13} />
                   変更
-                </button>
+                </ImagePickerButton>
               </div>
             ) : (
-              <button
-                onClick={handlePickImage}
-                className="w-full h-32 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-orange-400 hover:text-orange-400 transition-colors"
-              >
+              <ImagePickerButton className="w-full h-32 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-orange-400 hover:text-orange-400 transition-colors">
                 <ImageIcon size={28} />
                 <span className="text-sm">写真を選択 / 撮影</span>
-              </button>
+              </ImagePickerButton>
             )}
-            {/* Web用の隠しファイルinput */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
           </div>
 
           {/* 材料 */}
@@ -256,6 +267,7 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
                     {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                   <button
+                    type="button"
                     onClick={() => removeIngredient(i)}
                     disabled={ingredients.length === 1}
                     className="text-gray-400 hover:text-red-500 disabled:opacity-30 transition-colors"
@@ -266,6 +278,7 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
               ))}
             </div>
             <button
+              type="button"
               onClick={() => setIngredients((prev) => [...prev, emptyIngredient()])}
               className="mt-2 flex items-center gap-1 text-orange-500 hover:text-orange-600 text-sm font-medium"
             >
@@ -289,17 +302,19 @@ export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: P
         {/* フッター */}
         <div className="p-5 border-t border-gray-100 flex gap-3">
           <button
+            type="button"
             onClick={onClose}
             className="flex-1 py-2.5 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors"
           >
             キャンセル
           </button>
           <button
+            type="button"
             onClick={handleSave}
             disabled={saving}
             className="flex-1 py-2.5 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors"
           >
-            {uploading ? "画像をアップロード中..." : saving ? "保存中..." : "保存"}
+            {uploading ? "アップロード中..." : saving ? "保存中..." : "保存"}
           </button>
         </div>
       </div>
