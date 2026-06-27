@@ -22,6 +22,7 @@ export default function RecipeEditModal({ recipe, onSave, onClose }: Props) {
   const [name, setName] = useState(recipe?.name ?? "");
   const [defaultServings, setDefaultServings] = useState(recipe?.defaultServings ?? 2);
   const [memo, setMemo] = useState(recipe?.memo ?? "");
+  const [imageUrl, setImageUrl] = useState(recipe?.imageUrl ?? "");
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>(
     recipe?.ingredients.length ? recipe.ingredients : [emptyIngredient()]
   );
@@ -53,6 +54,7 @@ export default function RecipeEditModal({ recipe, onSave, onClose }: Props) {
         name: name.trim(),
         defaultServings,
         memo: memo.trim(),
+        imageUrl: imageUrl.trim() || undefined,
         ingredients: validIngredients,
       });
       onClose();
@@ -165,6 +167,28 @@ export default function RecipeEditModal({ recipe, onSave, onClose }: Props) {
               <Plus size={16} />
               材料を追加
             </button>
+          </div>
+
+          {/* 画像URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              料理の画像URL（任意）
+            </label>
+            {imageUrl && (
+              <img
+                src={imageUrl}
+                alt="プレビュー"
+                className="w-full h-32 object-cover rounded-lg mb-2"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            )}
+            <input
+              type="url"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://example.com/image.jpg"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
           </div>
 
           {/* メモ */}

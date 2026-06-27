@@ -68,6 +68,7 @@ export interface Recipe {
   defaultServings: number;
   ingredients: RecipeIngredient[];
   memo?: string;
+  imageUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

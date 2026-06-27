@@ -3,35 +3,7 @@
 import { useState, useMemo } from "react";
 import { X, ChefHat, CheckCircle, AlertCircle } from "lucide-react";
 import { Recipe, FoodItem } from "@/types";
-
-function bigram(s: string): Set<string> {
-  const set = new Set<string>();
-  const t = s.replace(/\s/g, "");
-  for (let i = 0; i < t.length - 1; i++) set.add(t[i] + t[i + 1]);
-  return set;
-}
-
-function similarity(a: string, b: string): number {
-  const sa = bigram(a.toLowerCase());
-  const sb = bigram(b.toLowerCase());
-  if (sa.size === 0 || sb.size === 0) return a.toLowerCase() === b.toLowerCase() ? 1 : 0;
-  let inter = 0;
-  for (const g of sa) if (sb.has(g)) inter++;
-  return (2 * inter) / (sa.size + sb.size);
-}
-
-function matchItem(name: string, items: FoodItem[]): FoodItem | null {
-  let best: FoodItem | null = null;
-  let bestScore = 0.35; // threshold
-  for (const item of items) {
-    const score = similarity(name, item.name);
-    if (score > bestScore) {
-      bestScore = score;
-      best = item;
-    }
-  }
-  return best;
-}
+import { matchIngredientToInventory } from "@/lib/ingredientMatcher";
 
 interface IngredientResult {
   name: string;
@@ -57,7 +29,7 @@ export default function CookModal({ recipe, items, onCook, onClose }: Props) {
     const multiplier = servings / recipe.defaultServings;
     return recipe.ingredients.map((ing) => {
       const requiredQty = ing.quantity * multiplier;
-      const matched = matchItem(ing.name, items);
+      const matched = matchIngredientToInventory(ing.name, items);
       return {
         name: ing.name,
         requiredQty,

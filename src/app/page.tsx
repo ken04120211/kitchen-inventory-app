@@ -31,16 +31,17 @@ import { ParsedReceiptItem } from "@/lib/receiptParser";
 import LoginPage from "@/components/LoginPage";
 import FamilySetupModal from "@/components/FamilySetupModal";
 import Header from "@/components/Header";
-import InventoryGrid from "@/components/InventoryGrid";
+import RecipeTab from "@/components/RecipeTab";
+import InventoryTab from "@/components/InventoryTab";
 import ItemModal from "@/components/ItemModal";
-import AlertsSection from "@/components/AlertsSection";
-import FilterControls from "@/components/FilterControls";
 import ReceiptPreviewModal from "@/components/ReceiptPreviewModal";
 import KnownItemsModal from "@/components/KnownItemsModal";
 import ShoppingListModal from "@/components/ShoppingListModal";
 import SettingsModal from "@/components/SettingsModal";
-import RecipesModal from "@/components/RecipesModal";
 import OnboardingModal, { hasSeenOnboarding } from "@/components/OnboardingModal";
+import { ChefHat, Package } from "lucide-react";
+
+type Tab = "recipe" | "inventory";
 
 export default function Home() {
   const { user, quickAuth, loading: authLoading, logout } = useAuth();
@@ -49,7 +50,6 @@ export default function Home() {
   const effectiveDisplayName = user?.displayName ?? quickAuth?.displayName ?? null;
   const effectiveEmail = user?.email ?? quickAuth?.email ?? null;
 
-  // quickAuthがある場合はcachedFamilyIdで即時復元
   const [familyId, setFamilyId] = useState<string | null>(() =>
     (typeof window !== "undefined" && localStorage.getItem("quick_auth_v1"))
       ? loadCachedFamilyId()
@@ -57,7 +57,6 @@ export default function Home() {
   );
   const [family, setFamily] = useState<Family | null>(null);
 
-  // Firestoreのfamily検索が完了したかどうか（権限エラーは完了とみなさない）
   const [familySearchDone, setFamilySearchDone] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return !!(localStorage.getItem("quick_auth_v1") && loadCachedFamilyId());
@@ -70,14 +69,16 @@ export default function Home() {
     category: "",
     sortBy: "name",
   });
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+
+  const [activeTab, setActiveTab] = useState<Tab>("recipe");
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FoodItem | null>(null);
   const [isKnownItemsOpen, setIsKnownItemsOpen] = useState(false);
   const [knownItems, setKnownItems] = useState<KnownItem[]>([]);
   const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isRecipesOpen, setIsRecipesOpen] = useState(false);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
@@ -88,8 +89,6 @@ export default function Home() {
     setKnownItems(KnownItemsStorage.getItems());
   }, []);
 
-  // Firebase認証確定後にfamilyIdをFirestoreから検証・更新
-  // userも依存に含めることで、web認証完了時に自動リトライ
   useEffect(() => {
     if (!effectiveUid) {
       setFamilyId(null);
@@ -119,21 +118,17 @@ export default function Home() {
         setFamilySearchDone(true);
       })
       .catch(() => {
-        // 権限エラー（web認証未確定）: familySearchDoneをtrueにしない
-        // userが確定した際にefが再実行される
+        // 権限エラー（web認証未確定）: userが確定した際に再実行
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveUid, user]);
 
-  // web認証が来ない場合の10秒フォールバック
   useEffect(() => {
     if (!effectiveUid || familySearchDone) return;
     const t = setTimeout(() => setFamilySearchDone(true), 10000);
     return () => clearTimeout(t);
   }, [effectiveUid, familySearchDone]);
 
-  // familyId が決まったら Firestore をリアルタイム購読
-  // userも依存に含めてweb認証確定時に再購読（権限エラーから回復）
   useEffect(() => {
     if (!familyId) return;
     const unsubItems = subscribeToItems(familyId, setItems);
@@ -141,7 +136,6 @@ export default function Home() {
     return () => { unsubItems(); unsubRecipes(); };
   }, [familyId, user]);
 
-  // クライアントサイドでフィルタリング・ソート
   useEffect(() => {
     let result = [...items];
     if (filters.searchQuery) {
@@ -252,6 +246,15 @@ export default function Home() {
     setScannedItems(null);
   };
 
+  const handleCook = async (deductions: { itemId: string; newQty: number }[]) => {
+    if (!familyId) return;
+    await Promise.all(
+      deductions.map(({ itemId, newQty }) =>
+        fsUpdateItem(familyId, itemId, { quantity: newQty })
+      )
+    );
+  };
+
   const progressLabel = (() => {
     if (!scanProgress) return null;
     switch (scanProgress.status) {
@@ -262,7 +265,6 @@ export default function Home() {
     }
   })();
 
-  // Firebase未確認 かつ キャッシュもない → ローディング
   if (authLoading && !quickAuth) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -271,10 +273,8 @@ export default function Home() {
     );
   }
 
-  // 未ログイン（Firebase確認済み かつ キャッシュなし）
   if (!authLoading && !user && !quickAuth) return <LoginPage />;
 
-  // family検索中（キャッシュなし、まだ結果が出ていない）
   if (effectiveUid && !familyId && !familySearchDone) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -283,24 +283,20 @@ export default function Home() {
     );
   }
 
-  // 家族グループ未設定（検索完了後）
   if (!familyId && familySearchDone && effectiveUid) {
-    return <FamilySetupModal
-      user={{ uid: effectiveUid, displayName: effectiveDisplayName, email: effectiveEmail }}
-      onSetupComplete={handleFamilySetupComplete}
-    />;
+    return (
+      <FamilySetupModal
+        user={{ uid: effectiveUid, displayName: effectiveDisplayName, email: effectiveEmail }}
+        onSetupComplete={handleFamilySetupComplete}
+      />
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
+      <div className="container mx-auto px-4 pt-6 pb-24 max-w-2xl">
         <Header
-          onAddItem={handleAddItem}
-          onScanReceipt={handleScanReceipt}
-          onOpenKnownItems={() => setIsKnownItemsOpen(true)}
-          onOpenShoppingList={() => setIsShoppingListOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenRecipes={() => setIsRecipesOpen(true)}
           familyName={family?.name}
           userName={effectiveDisplayName ?? undefined}
         />
@@ -339,95 +335,122 @@ export default function Home() {
           </div>
         )}
 
-        <AlertsSection items={items} />
-        <FilterControls filters={filters} onFiltersChange={handleFiltersChange} />
-        <InventoryGrid
-          items={filteredItems}
-          onEditItem={handleEditItem}
-          onDeleteItem={handleDeleteItem}
-          onConsumeItem={handleConsumeItem}
-        />
-
-        {isModalOpen && (
-          <ItemModal
-            item={editingItem}
-            onSave={handleSaveItem}
-            onClose={() => {
-              setIsModalOpen(false);
-              setEditingItem(null);
-            }}
-          />
-        )}
-
-        {scannedItems && (
-          <ReceiptPreviewModal
-            items={scannedItems}
-            onConfirm={handleConfirmScannedItems}
-            onClose={() => setScannedItems(null)}
-          />
-        )}
-
-        {isKnownItemsOpen && (
-          <KnownItemsModal
-            items={knownItems}
-            onChange={setKnownItems}
-            onClose={() => setIsKnownItemsOpen(false)}
-          />
-        )}
-
-        {isShoppingListOpen && (
-          <ShoppingListModal
-            items={items}
-            onClose={() => setIsShoppingListOpen(false)}
-          />
-        )}
-
-        {isRecipesOpen && familyId && (
-          <RecipesModal
+        {/* タブ本体 */}
+        {activeTab === "recipe" ? (
+          <RecipeTab
             recipes={recipes}
             items={items}
-            familyId={familyId}
-            onAdd={async (data) => { await fsAddRecipe(familyId, data); }}
-            onUpdate={(id, data) => fsUpdateRecipe(familyId, id, data)}
-            onDelete={(id) => fsDeleteRecipe(familyId, id)}
-            onCook={async (deductions) => {
-              await Promise.all(
-                deductions.map(({ itemId, newQty }) =>
-                  fsUpdateItem(familyId, itemId, { quantity: newQty })
-                )
-              );
-            }}
-            onClose={() => setIsRecipesOpen(false)}
+            onAdd={async (data) => { await fsAddRecipe(familyId!, data); }}
+            onUpdate={(id, data) => fsUpdateRecipe(familyId!, id, data)}
+            onDelete={(id) => fsDeleteRecipe(familyId!, id)}
+            onCook={handleCook}
           />
-        )}
-
-        {showOnboarding && (
-          <OnboardingModal onClose={() => setShowOnboarding(false)} />
-        )}
-
-        {isSettingsOpen && family && effectiveUid && (
-          <SettingsModal
-            user={{
-              uid: effectiveUid,
-              displayName: effectiveDisplayName,
-              email: effectiveEmail,
-              photoURL: user?.photoURL ?? null,
-            }}
-            family={family}
-            onClose={() => setIsSettingsOpen(false)}
-            onFamilyNameUpdate={(name) => setFamily((f) => f ? { ...f, name } : f)}
-            onLeaveFamily={() => {
-              clearCachedFamilyId();
-              setFamilyId(null);
-              setFamily(null);
-              setItems([]);
-              setFamilySearchDone(false);
-              setIsSettingsOpen(false);
-            }}
-            onLogout={logout}
+        ) : (
+          <InventoryTab
+            items={items}
+            filteredItems={filteredItems}
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            onAddItem={handleAddItem}
+            onEditItem={handleEditItem}
+            onDeleteItem={handleDeleteItem}
+            onConsumeItem={handleConsumeItem}
+            onScanReceipt={handleScanReceipt}
+            onOpenShoppingList={() => setIsShoppingListOpen(true)}
+            onOpenKnownItems={() => setIsKnownItemsOpen(true)}
           />
         )}
       </div>
+
+      {/* ボトムタブナビ */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom z-40">
+        <div className="flex max-w-2xl mx-auto">
+          <button
+            onClick={() => setActiveTab("recipe")}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors ${
+              activeTab === "recipe"
+                ? "text-orange-500 border-t-2 border-orange-500 -mt-px"
+                : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <ChefHat size={22} />
+            レシピ
+          </button>
+          <button
+            onClick={() => setActiveTab("inventory")}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors ${
+              activeTab === "inventory"
+                ? "text-blue-600 border-t-2 border-blue-600 -mt-px"
+                : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <Package size={22} />
+            在庫
+          </button>
+        </div>
+      </nav>
+
+      {/* モーダル類 */}
+      {isModalOpen && (
+        <ItemModal
+          item={editingItem}
+          onSave={handleSaveItem}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingItem(null);
+          }}
+        />
+      )}
+
+      {scannedItems && (
+        <ReceiptPreviewModal
+          items={scannedItems}
+          onConfirm={handleConfirmScannedItems}
+          onClose={() => setScannedItems(null)}
+        />
+      )}
+
+      {isKnownItemsOpen && (
+        <KnownItemsModal
+          items={knownItems}
+          onChange={setKnownItems}
+          onClose={() => setIsKnownItemsOpen(false)}
+        />
+      )}
+
+      {isShoppingListOpen && (
+        <ShoppingListModal
+          items={items}
+          onClose={() => setIsShoppingListOpen(false)}
+        />
+      )}
+
+      {showOnboarding && (
+        <OnboardingModal onClose={() => setShowOnboarding(false)} />
+      )}
+
+      {isSettingsOpen && family && effectiveUid && (
+        <SettingsModal
+          user={{
+            uid: effectiveUid,
+            displayName: effectiveDisplayName,
+            email: effectiveEmail,
+            photoURL: user?.photoURL ?? null,
+          }}
+          family={family}
+          onClose={() => setIsSettingsOpen(false)}
+          onFamilyNameUpdate={(name) => setFamily((f) => f ? { ...f, name } : f)}
+          onLeaveFamily={() => {
+            clearCachedFamilyId();
+            setFamilyId(null);
+            setFamily(null);
+            setItems([]);
+            setFamilySearchDone(false);
+            setIsSettingsOpen(false);
+          }}
+          onLogout={logout}
+        />
+      )}
     </div>
   );
 }
