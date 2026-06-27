@@ -6,12 +6,17 @@ const config: CapacitorConfig = {
   webDir: "out",
   server: {
     androidScheme: "https",
+    iosScheme: "https",
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
       backgroundColor: "#667eea",
       showSpinner: false,
+    },
+    FirebaseAuthentication: {
+      skipNativeAuth: false,
+      providers: ["google.com"],
     },
   },
 };

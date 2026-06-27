@@ -55,3 +55,19 @@ export interface KnownItem {
   unit: Unit;
   defaultQuantity: number;
 }
+
+export interface RecipeIngredient {
+  name: string;
+  quantity: number;
+  unit: Unit;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  defaultServings: number;
+  ingredients: RecipeIngredient[];
+  memo?: string;
+  createdAt: string;
+  updatedAt: string;
+}

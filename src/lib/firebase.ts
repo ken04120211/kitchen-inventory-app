@@ -1,5 +1,5 @@
 import { getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { initializeAuth, browserLocalPersistence, getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -12,7 +12,11 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const isNew = getApps().length === 0;
+const app = isNew ? initializeApp(firebaseConfig) : getApps()[0];
 
-export const auth = getAuth(app);
+// IndexedDBはCapacitor WebViewで遅延することがあるためlocalStorageを使用
+export const auth = isNew
+  ? initializeAuth(app, { persistence: browserLocalPersistence })
+  : getAuth(app);
 export const db = getFirestore(app);

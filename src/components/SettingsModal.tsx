@@ -2,11 +2,17 @@
 
 import { useState } from "react";
 import { X, Copy, Check, LogOut, Users, User, Edit2, Crown, AlertTriangle } from "lucide-react";
-import { User as FirebaseUser } from "firebase/auth";
 import { Family, updateFamilyName, leaveFamily } from "@/lib/familyDB";
 
+interface SimpleUser {
+  uid: string;
+  displayName: string | null;
+  email: string | null;
+  photoURL?: string | null;
+}
+
 interface SettingsModalProps {
-  user: FirebaseUser;
+  user: SimpleUser;
   family: Family;
   onClose: () => void;
   onFamilyNameUpdate: (name: string) => void;

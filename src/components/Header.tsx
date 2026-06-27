@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Camera, ShoppingCart, Users, Settings, BookMarked } from "lucide-react";
+import { Plus, Camera, ShoppingCart, Users, Settings, BookMarked, ChefHat } from "lucide-react";
 
 interface HeaderProps {
   onAddItem: () => void;
@@ -8,6 +8,7 @@ interface HeaderProps {
   onOpenKnownItems: () => void;
   onOpenShoppingList: () => void;
   onOpenSettings: () => void;
+  onOpenRecipes: () => void;
   familyName?: string;
   userName?: string;
 }
@@ -18,6 +19,7 @@ export default function Header({
   onOpenKnownItems,
   onOpenShoppingList,
   onOpenSettings,
+  onOpenRecipes,
   familyName,
   userName,
 }: HeaderProps) {
@@ -40,6 +42,13 @@ export default function Header({
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={onOpenRecipes}
+            className="flex items-center gap-2 bg-orange-400/80 text-white border border-orange-300/60 px-4 py-2.5 rounded-lg font-semibold hover:bg-orange-400 transition-colors text-sm"
+          >
+            <ChefHat size={18} />
+            レシピ
+          </button>
           <button
             onClick={onOpenKnownItems}
             className="flex items-center gap-2 bg-white/20 text-white border border-white/40 px-4 py-2.5 rounded-lg font-semibold hover:bg-white/30 transition-colors text-sm"

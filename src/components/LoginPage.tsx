@@ -3,18 +3,19 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
-function getErrorMessage(code: string): string {
+function getErrorMessage(err: unknown): string {
+  const code = (err as { code?: string }).code ?? "";
+  const message = (err as { message?: string }).message ?? "";
   switch (code) {
-    case "auth/popup-blocked":
-      return "ポップアップがブロックされました。ブラウザのポップアップ許可設定を確認してください。";
     case "auth/popup-closed-by-user":
+    case "auth/cancelled":
       return "ログインがキャンセルされました。";
     case "auth/unauthorized-domain":
-      return "このドメインは Firebase で許可されていません。Firebase コンソールの Authentication → 承認済みドメインを確認してください。";
+      return "このドメインは Firebase で許可されていません。";
     case "auth/operation-not-allowed":
-      return "Google ログインが有効化されていません。Firebase コンソールで Google プロバイダを有効にしてください。";
+      return "Google ログインが有効化されていません。";
     default:
-      return `ログインに失敗しました（${code}）`;
+      return message || `ログインに失敗しました（${code || "unknown"}）`;
   }
 }
 
@@ -29,8 +30,7 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
     } catch (err: unknown) {
-      const code = (err as { code?: string }).code ?? "unknown";
-      setError(getErrorMessage(code));
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

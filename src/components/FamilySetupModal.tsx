@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { Users, Plus, LogIn, Copy, Check } from "lucide-react";
-import { User } from "firebase/auth";
 import { createFamily, joinFamily } from "@/lib/familyDB";
 
 interface FamilySetupModalProps {
-  user: User;
+  user: { uid: string; displayName: string | null; email: string | null };
   onSetupComplete: (familyId: string) => void;
 }
 
@@ -24,8 +23,9 @@ export default function FamilySetupModal({ user, onSetupComplete }: FamilySetupM
     try {
       const familyId = await createFamily(user, familyName.trim());
       onSetupComplete(familyId);
-    } catch {
-      setError("作成に失敗しました。もう一度お試しください。");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`作成に失敗しました: ${msg}`);
     } finally {
       setLoading(false);
     }

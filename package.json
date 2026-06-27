@@ -15,6 +15,7 @@
     "generate:icons": "npx capacitor-assets generate --iconBackgroundColor #ffffff --splashBackgroundColor #667eea"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^8.2.0",
     "@capacitor/android": "^8.3.1",
     "@capacitor/camera": "^8.2.0",
     "@capacitor/cli": "^8.3.1",
