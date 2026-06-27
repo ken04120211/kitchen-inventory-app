@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "キッチン在庫管理アプリ",
-  description: "食材・調味料・レトルト・カップ麺の在庫管理ができるWebアプリ",
+  title: "キッチンプランナー",
+  description: "レシピ管理・食材在庫・買い物リストを家族で共有できるアプリ",
 };
 
 export const viewport = {
