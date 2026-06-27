@@ -20,6 +20,7 @@ function cardGradient(name: string) {
 }
 
 interface Props {
+  familyId: string;
   recipes: Recipe[];
   items: FoodItem[];
   onAdd: (data: Omit<Recipe, "id" | "createdAt" | "updatedAt">) => Promise<void>;
@@ -28,7 +29,7 @@ interface Props {
   onCook: (deductions: { itemId: string; newQty: number }[]) => Promise<void>;
 }
 
-export default function RecipeTab({ recipes, items, onAdd, onUpdate, onDelete, onCook }: Props) {
+export default function RecipeTab({ familyId, recipes, items, onAdd, onUpdate, onDelete, onCook }: Props) {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null | "new">(null);
   const [cookingRecipe, setCookingRecipe] = useState<Recipe | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -220,6 +221,7 @@ export default function RecipeTab({ recipes, items, onAdd, onUpdate, onDelete, o
 
       {editingRecipe !== null && (
         <RecipeEditModal
+          familyId={familyId}
           recipe={editingRecipe === "new" ? undefined : editingRecipe}
           onSave={editingRecipe === "new" ? onAdd : (data) => onUpdate(editingRecipe.id, data)}
           onClose={() => setEditingRecipe(null)}

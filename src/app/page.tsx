@@ -338,6 +338,7 @@ export default function Home() {
         {/* タブ本体 */}
         {activeTab === "recipe" ? (
           <RecipeTab
+            familyId={familyId!}
             recipes={recipes}
             items={items}
             onAdd={async (data) => { await fsAddRecipe(familyId!, data); }}

@@ -5,6 +5,7 @@ import {
   getAuth,
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -24,3 +25,4 @@ export const auth = isNew
   ? initializeAuth(app, { persistence: browserLocalPersistence })
   : getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);

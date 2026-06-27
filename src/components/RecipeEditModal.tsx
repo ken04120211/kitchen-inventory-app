@@ -1,69 +1,132 @@
 "use client";
 
-import { useState } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { X, Plus, Trash2, Camera, ImageIcon, XCircle } from "lucide-react";
 import { Recipe, RecipeIngredient, Unit } from "@/types";
 
 const UNIT_OPTIONS: Unit[] = ["個", "本", "袋", "パック", "kg", "g", "L", "ml"];
 
+interface PendingImage {
+  blob: Blob;
+  ext: string;
+  preview: string; // object URL for display
+}
+
 interface Props {
+  familyId: string;
   recipe?: Recipe;
   onSave: (data: Omit<Recipe, "id" | "createdAt" | "updatedAt">) => Promise<void>;
   onClose: () => void;
 }
 
-const emptyIngredient = (): RecipeIngredient => ({
-  name: "",
-  quantity: 1,
-  unit: "個",
-});
+const emptyIngredient = (): RecipeIngredient => ({ name: "", quantity: 1, unit: "個" });
 
-export default function RecipeEditModal({ recipe, onSave, onClose }: Props) {
+export default function RecipeEditModal({ familyId, recipe, onSave, onClose }: Props) {
   const [name, setName] = useState(recipe?.name ?? "");
   const [defaultServings, setDefaultServings] = useState(recipe?.defaultServings ?? 2);
   const [memo, setMemo] = useState(recipe?.memo ?? "");
-  const [imageUrl, setImageUrl] = useState(recipe?.imageUrl ?? "");
+  const [imageUrl, setImageUrl] = useState(recipe?.imageUrl ?? ""); // already-saved URL
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>(
     recipe?.ingredients.length ? recipe.ingredients : [emptyIngredient()]
   );
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const updateIngredient = (i: number, patch: Partial<RecipeIngredient>) => {
-    setIngredients((prev) =>
-      prev.map((ing, idx) => (idx === i ? { ...ing, ...patch } : ing))
-    );
-  };
-
-  const removeIngredient = (i: number) => {
+  const updateIngredient = (i: number, patch: Partial<RecipeIngredient>) =>
+    setIngredients((prev) => prev.map((ing, idx) => (idx === i ? { ...ing, ...patch } : ing)));
+  const removeIngredient = (i: number) =>
     setIngredients((prev) => prev.filter((_, idx) => idx !== i));
+
+  const clearImage = () => {
+    if (pendingImage) URL.revokeObjectURL(pendingImage.preview);
+    setPendingImage(null);
+    setImageUrl("");
   };
 
-  const addIngredient = () => {
-    setIngredients((prev) => [...prev, emptyIngredient()]);
+  // Web: file input
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (pendingImage) URL.revokeObjectURL(pendingImage.preview);
+    const ext = file.type === "image/png" ? "png" : "jpeg";
+    setPendingImage({
+      blob: file,
+      ext,
+      preview: URL.createObjectURL(file),
+    });
+    e.target.value = "";
+  };
+
+  // iOS: Capacitor Camera
+  const handleCameraCapture = async () => {
+    try {
+      const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
+      const photo = await Camera.getPhoto({
+        quality: 80,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Prompt,
+      });
+      if (!photo.dataUrl) return;
+      const res = await fetch(photo.dataUrl);
+      const blob = await res.blob();
+      const ext = photo.format === "png" ? "png" : "jpeg";
+      if (pendingImage) URL.revokeObjectURL(pendingImage.preview);
+      setPendingImage({ blob, ext, preview: photo.dataUrl });
+    } catch {
+      // ユーザーがキャンセルした場合など
+    }
+  };
+
+  const handlePickImage = async () => {
+    const { Capacitor } = await import("@capacitor/core");
+    if (Capacitor.isNativePlatform()) {
+      await handleCameraCapture();
+    } else {
+      fileInputRef.current?.click();
+    }
   };
 
   const handleSave = async () => {
     if (!name.trim()) { setError("料理名を入力してください"); return; }
     const validIngredients = ingredients.filter((ing) => ing.name.trim());
     if (validIngredients.length === 0) { setError("材料を1つ以上入力してください"); return; }
+
     setSaving(true);
     setError(null);
     try {
+      let finalImageUrl: string | undefined = imageUrl || undefined;
+
+      // 新しい画像がある場合はアップロード
+      if (pendingImage) {
+        setUploading(true);
+        const { uploadRecipeImage } = await import("@/lib/recipeStorage");
+        finalImageUrl = await uploadRecipeImage(familyId, pendingImage.blob, pendingImage.ext);
+        setUploading(false);
+      }
+
       await onSave({
         name: name.trim(),
         defaultServings,
         memo: memo.trim(),
-        imageUrl: imageUrl.trim() || undefined,
+        imageUrl: finalImageUrl,
         ingredients: validIngredients,
       });
+
+      if (pendingImage) URL.revokeObjectURL(pendingImage.preview);
       onClose();
     } catch (err) {
+      setUploading(false);
       setError(err instanceof Error ? err.message : "保存に失敗しました");
     } finally {
       setSaving(false);
     }
   };
+
+  const previewSrc = pendingImage?.preview ?? (imageUrl || null);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
@@ -118,6 +181,50 @@ export default function RecipeEditModal({ recipe, onSave, onClose }: Props) {
             </div>
           </div>
 
+          {/* 料理画像 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">料理の写真（任意）</label>
+            {previewSrc ? (
+              <div className="relative">
+                <img
+                  src={previewSrc}
+                  alt="プレビュー"
+                  className="w-full h-40 object-cover rounded-xl"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+                <button
+                  onClick={clearImage}
+                  className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-colors"
+                >
+                  <XCircle size={20} />
+                </button>
+                <button
+                  onClick={handlePickImage}
+                  className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-black/50 hover:bg-black/70 text-white text-xs px-2.5 py-1.5 rounded-lg transition-colors"
+                >
+                  <Camera size={13} />
+                  変更
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handlePickImage}
+                className="w-full h-32 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-orange-400 hover:text-orange-400 transition-colors"
+              >
+                <ImageIcon size={28} />
+                <span className="text-sm">写真を選択 / 撮影</span>
+              </button>
+            )}
+            {/* Web用の隠しファイルinput */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </div>
+
           {/* 材料 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -146,9 +253,7 @@ export default function RecipeEditModal({ recipe, onSave, onClose }: Props) {
                     onChange={(e) => updateIngredient(i, { unit: e.target.value as Unit })}
                     className="w-18 px-2 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
                   >
-                    {UNIT_OPTIONS.map((u) => (
-                      <option key={u} value={u}>{u}</option>
-                    ))}
+                    {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                   <button
                     onClick={() => removeIngredient(i)}
@@ -161,34 +266,11 @@ export default function RecipeEditModal({ recipe, onSave, onClose }: Props) {
               ))}
             </div>
             <button
-              onClick={addIngredient}
+              onClick={() => setIngredients((prev) => [...prev, emptyIngredient()])}
               className="mt-2 flex items-center gap-1 text-orange-500 hover:text-orange-600 text-sm font-medium"
             >
-              <Plus size={16} />
-              材料を追加
+              <Plus size={16} />材料を追加
             </button>
-          </div>
-
-          {/* 画像URL */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              料理の画像URL（任意）
-            </label>
-            {imageUrl && (
-              <img
-                src={imageUrl}
-                alt="プレビュー"
-                className="w-full h-32 object-cover rounded-lg mb-2"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            )}
-            <input
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://example.com/image.jpg"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            />
           </div>
 
           {/* メモ */}
@@ -217,7 +299,7 @@ export default function RecipeEditModal({ recipe, onSave, onClose }: Props) {
             disabled={saving}
             className="flex-1 py-2.5 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors"
           >
-            {saving ? "保存中..." : "保存"}
+            {uploading ? "画像をアップロード中..." : saving ? "保存中..." : "保存"}
           </button>
         </div>
       </div>

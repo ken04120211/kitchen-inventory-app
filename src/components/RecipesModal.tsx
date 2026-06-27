@@ -20,6 +20,7 @@ interface Props {
 export default function RecipesModal({
   recipes,
   items,
+  familyId,
   onAdd,
   onUpdate,
   onDelete,
@@ -139,6 +140,7 @@ export default function RecipesModal({
       {/* レシピ追加/編集モーダル */}
       {editingRecipe !== null && (
         <RecipeEditModal
+          familyId={familyId}
           recipe={editingRecipe === "new" ? undefined : editingRecipe}
           onSave={
             editingRecipe === "new"
