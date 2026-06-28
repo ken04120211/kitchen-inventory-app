@@ -1,17 +1,19 @@
 import type { NextConfig } from "next";
 
-const isCapacitor = process.env.BUILD_TARGET === "capacitor";
+const buildTarget = process.env.BUILD_TARGET;
+const isCapacitor  = buildTarget === "capacitor";
+const isGithubPages = buildTarget === "github-pages";
+const isStatic = isCapacitor || isGithubPages;
 
 const nextConfig: NextConfig = {
-  output: "export",
-  trailingSlash: true,
+  // Capacitor(iOS)・GitHub Pages → 静的エクスポート
+  // Ubuntu サーバー(デフォルト) → standalone（SSR + API Routes 対応）
+  output: isStatic ? "export" : "standalone",
+  trailingSlash: isStatic,
   images: {
-    unoptimized: true,
+    unoptimized: isStatic,
   },
-  // Capacitorビルド時はbasePath不要、GitHub Pages用のみ設定
-  basePath: (!isCapacitor && process.env.NODE_ENV === "production")
-    ? "/kitchen-inventory-app"
-    : "",
+  basePath: isGithubPages ? "/kitchen-inventory-app" : "",
 };
 
 export default nextConfig;

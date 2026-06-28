@@ -1,0 +1,14 @@
+services:
+  kitchen_web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kitchen_web
+    restart: unless-stopped
+    # nginx からのみアクセスできるよう localhost にバインド
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=production

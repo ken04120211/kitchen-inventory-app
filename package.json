@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:github": "cross-env BUILD_TARGET=github-pages next build",
     "start": "next start",
     "lint": "eslint",
     "build:capacitor": "cross-env BUILD_TARGET=capacitor next build",
