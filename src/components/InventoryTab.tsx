@@ -35,8 +35,8 @@ export default function InventoryTab({
 }: Props) {
   return (
     <div className="space-y-4">
-      {/* アクションボタン */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* アクションボタン（モバイルのみ・デスクトップはサイドバーに移動） */}
+      <div className="md:hidden grid grid-cols-3 gap-2">
         <button
           onClick={onAddItem}
           className="flex items-center justify-center gap-1.5 bg-blue-600 text-white px-3 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-700 transition-colors shadow-sm"
@@ -60,10 +60,10 @@ export default function InventoryTab({
         </button>
       </div>
 
-      {/* よく買う品目 */}
+      {/* よく買う品目（モバイルのみ） */}
       <button
         onClick={onOpenKnownItems}
-        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-200 px-3 py-2 rounded-xl text-xs font-medium transition-colors"
+        className="md:hidden w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-200 px-3 py-2 rounded-xl text-xs font-medium transition-colors"
       >
         <BookMarked size={14} />
         よく買う品目を管理

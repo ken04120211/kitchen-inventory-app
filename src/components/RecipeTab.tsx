@@ -69,12 +69,13 @@ export default function RecipeTab({ familyId, recipes, items, onAdd, onUpdate, o
               <h2 className="text-base font-bold text-gray-800">今日作れる料理</h2>
               <span className="text-xs text-gray-400">在庫の食材で作れます</span>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
+            {/* モバイル: 横スクロール / デスクトップ: グリッド */}
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 md:grid md:grid-cols-4 md:overflow-visible md:pb-0 md:mx-0 md:px-0 md:gap-4">
               {cookableRecipes.map(({ recipe, matched, total }) => (
                 <button
                   key={recipe.id}
                   onClick={() => setCookingRecipe(recipe)}
-                  className="flex-shrink-0 w-36 rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow text-left"
+                  className="flex-shrink-0 w-36 md:w-auto rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow text-left"
                 >
                   {recipe.imageUrl ? (
                     <img
@@ -139,7 +140,7 @@ export default function RecipeTab({ familyId, recipes, items, onAdd, onUpdate, o
               </button>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
               {recipesWithMatch.map(({ recipe, matched, total }) => (
                 <div
                   key={recipe.id}

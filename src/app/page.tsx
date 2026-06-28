@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { FoodItem, InventoryFilters, KnownItem, Recipe } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  ChefHat, Package, Plus, Camera, ShoppingCart, BookMarked, Settings, Users, LogOut,
+} from "lucide-react";
 
 const FAMILY_ID_CACHE_KEY = "cached_family_id_v1";
 const loadCachedFamilyId = () => {
@@ -39,7 +42,6 @@ import KnownItemsModal from "@/components/KnownItemsModal";
 import ShoppingListModal from "@/components/ShoppingListModal";
 import SettingsModal from "@/components/SettingsModal";
 import OnboardingModal, { hasSeenOnboarding } from "@/components/OnboardingModal";
-import { ChefHat, Package } from "lucide-react";
 
 type Tab = "recipe" | "inventory";
 
@@ -56,7 +58,6 @@ export default function Home() {
       : null
   );
   const [family, setFamily] = useState<Family | null>(null);
-
   const [familySearchDone, setFamilySearchDone] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return !!(localStorage.getItem("quick_auth_v1") && loadCachedFamilyId());
@@ -65,12 +66,9 @@ export default function Home() {
   const [items, setItems] = useState<FoodItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<FoodItem[]>([]);
   const [filters, setFilters] = useState<InventoryFilters>({
-    searchQuery: "",
-    category: "",
-    sortBy: "name",
+    searchQuery: "", category: "", sortBy: "name",
   });
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-
   const [activeTab, setActiveTab] = useState<Tab>("recipe");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -80,46 +78,33 @@ export default function Home() {
   const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   const [scannedItems, setScannedItems] = useState<ParsedReceiptItem[] | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setKnownItems(KnownItemsStorage.getItems());
-  }, []);
+  useEffect(() => { setKnownItems(KnownItemsStorage.getItems()); }, []);
 
   useEffect(() => {
     if (!effectiveUid) {
-      setFamilyId(null);
-      setFamily(null);
-      setItems([]);
-      clearCachedFamilyId();
-      setFamilySearchDone(false);
+      setFamilyId(null); setFamily(null); setItems([]);
+      clearCachedFamilyId(); setFamilySearchDone(false);
       return;
     }
-
     getUserFamilyId(effectiveUid)
       .then(async (id) => {
         if (id) {
-          saveCachedFamilyId(id);
-          setFamilyId(id);
+          saveCachedFamilyId(id); setFamilyId(id);
           try {
             const f = await getFamily(id, effectiveUid);
             setFamily(f);
             if (f && !hasSeenOnboarding()) setShowOnboarding(true);
-          } catch {
-            // getFamily失敗はfamilyIdは保持したまま先に進む
-          }
+          } catch { /* getFamily失敗はfamilyIdを保持 */ }
         } else {
-          const hasCached = !!loadCachedFamilyId();
-          if (!hasCached) setFamilyId(null);
+          if (!loadCachedFamilyId()) setFamilyId(null);
         }
         setFamilySearchDone(true);
       })
-      .catch(() => {
-        // 権限エラー（web認証未確定）: userが確定した際に再実行
-      });
+      .catch(() => { /* 権限エラー: user確定後に再実行 */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveUid, user]);
 
@@ -141,34 +126,22 @@ export default function Home() {
     if (filters.searchQuery) {
       const q = filters.searchQuery.toLowerCase();
       result = result.filter(
-        (i) =>
-          i.name.toLowerCase().includes(q) ||
+        (i) => i.name.toLowerCase().includes(q) ||
           i.category.toLowerCase().includes(q) ||
           (i.note && i.note.toLowerCase().includes(q))
       );
     }
-    if (filters.category) {
-      result = result.filter((i) => i.category === filters.category);
-    }
+    if (filters.category) result = result.filter((i) => i.category === filters.category);
     switch (filters.sortBy) {
-      case "name":
-        result.sort((a, b) => a.name.localeCompare(b.name));
-        break;
+      case "name": result.sort((a, b) => a.name.localeCompare(b.name)); break;
       case "category":
-        result.sort(
-          (a, b) =>
-            a.category.localeCompare(b.category) ||
-            a.name.localeCompare(b.name)
-        );
+        result.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
         break;
-      case "quantity":
-        result.sort((a, b) => a.quantity - b.quantity);
-        break;
+      case "quantity": result.sort((a, b) => a.quantity - b.quantity); break;
       case "expiry":
         result.sort((a, b) => {
           if (!a.expiry && !b.expiry) return 0;
-          if (!a.expiry) return 1;
-          if (!b.expiry) return -1;
+          if (!a.expiry) return 1; if (!b.expiry) return -1;
           return new Date(a.expiry).getTime() - new Date(b.expiry).getTime();
         });
         break;
@@ -177,54 +150,31 @@ export default function Home() {
   }, [items, filters]);
 
   const handleFamilySetupComplete = async (id: string) => {
-    saveCachedFamilyId(id);
-    setFamilyId(id);
-    setFamilySearchDone(true);
-    const f = await getFamily(id);
-    setFamily(f);
+    saveCachedFamilyId(id); setFamilyId(id); setFamilySearchDone(true);
+    const f = await getFamily(id); setFamily(f);
     if (!hasSeenOnboarding()) setShowOnboarding(true);
   };
 
-  const handleAddItem = () => {
-    setEditingItem(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEditItem = (item: FoodItem) => {
-    setEditingItem(item);
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteItem = async (id: string) => {
-    if (!familyId) return;
-    await fsDeleteItem(familyId, id);
-  };
-
+  const handleAddItem = () => { setEditingItem(null); setIsModalOpen(true); };
+  const handleEditItem = (item: FoodItem) => { setEditingItem(item); setIsModalOpen(true); };
+  const handleDeleteItem = async (id: string) => { if (familyId) await fsDeleteItem(familyId, id); };
   const handleConsumeItem = async (id: string) => {
     if (!familyId) return;
     const item = items.find((i) => i.id === id);
     if (!item || item.quantity <= 0) return;
     await fsUpdateItem(familyId, id, { quantity: item.quantity - 1 });
   };
-
   const handleSaveItem = useCallback(
     async (itemData: Omit<FoodItem, "id" | "createdAt" | "updatedAt">) => {
       if (!familyId) return;
-      if (editingItem) {
-        await fsUpdateItem(familyId, editingItem.id, itemData);
-      } else {
-        await fsAddItem(familyId, itemData);
-      }
-      setIsModalOpen(false);
-      setEditingItem(null);
+      if (editingItem) { await fsUpdateItem(familyId, editingItem.id, itemData); }
+      else { await fsAddItem(familyId, itemData); }
+      setIsModalOpen(false); setEditingItem(null);
     },
     [familyId, editingItem]
   );
-
-  const handleFiltersChange = (newFilters: Partial<InventoryFilters>) => {
+  const handleFiltersChange = (newFilters: Partial<InventoryFilters>) =>
     setFilters((prev) => ({ ...prev, ...newFilters }));
-  };
-
   const handleScanReceipt = async () => {
     setScanError(null);
     try {
@@ -232,27 +182,19 @@ export default function Home() {
       setScannedItems(detected);
     } catch (err) {
       if (err instanceof Error && err.message.includes("cancelled")) return;
-      setScanError(
-        err instanceof Error ? err.message : "スキャンに失敗しました"
-      );
-    } finally {
-      setScanProgress(null);
-    }
+      setScanError(err instanceof Error ? err.message : "スキャンに失敗しました");
+    } finally { setScanProgress(null); }
   };
-
   const handleConfirmScannedItems = async (scanned: ParsedReceiptItem[]) => {
     if (!familyId) return;
     await Promise.all(scanned.map((item) => fsAddItem(familyId, item)));
     setScannedItems(null);
   };
-
   const handleCook = async (deductions: { itemId: string; newQty: number }[]) => {
     if (!familyId) return;
-    await Promise.all(
-      deductions.map(({ itemId, newQty }) =>
-        fsUpdateItem(familyId, itemId, { quantity: newQty })
-      )
-    );
+    await Promise.all(deductions.map(({ itemId, newQty }) =>
+      fsUpdateItem(familyId, itemId, { quantity: newQty })
+    ));
   };
 
   const progressLabel = (() => {
@@ -265,6 +207,7 @@ export default function Home() {
     }
   })();
 
+  // ── ローディング・認証ガード ──────────────────────────────────
   if (authLoading && !quickAuth) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -272,9 +215,7 @@ export default function Home() {
       </div>
     );
   }
-
   if (!authLoading && !user && !quickAuth) return <LoginPage />;
-
   if (effectiveUid && !familyId && !familySearchDone) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -282,7 +223,6 @@ export default function Home() {
       </div>
     );
   }
-
   if (!familyId && familySearchDone && effectiveUid) {
     return (
       <FamilySetupModal
@@ -292,14 +232,119 @@ export default function Home() {
     );
   }
 
+  // ── サイドバーのナビアイテム ──────────────────────────────────
+  const sidebarNav = [
+    { id: "recipe" as Tab, icon: <ChefHat size={18} />, label: "レシピ" },
+    { id: "inventory" as Tab, icon: <Package size={18} />, label: "在庫管理" },
+  ];
+  const sidebarActions = [
+    { icon: <Plus size={16} />, label: "食材追加", onClick: handleAddItem },
+    { icon: <Camera size={16} />, label: "レシートスキャン", onClick: handleScanReceipt },
+    { icon: <ShoppingCart size={16} />, label: "買い物リスト", onClick: () => setIsShoppingListOpen(true) },
+    { icon: <BookMarked size={16} />, label: "よく買う品目", onClick: () => setIsKnownItemsOpen(true) },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 pt-6 pb-24 max-w-2xl">
-        <Header
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          familyName={family?.name}
-          userName={effectiveDisplayName ?? undefined}
-        />
+    <div className="min-h-screen bg-gray-50 md:flex md:h-screen md:overflow-hidden">
+
+      {/* ══ デスクトップ サイドバー（md以上のみ表示） ══════════════ */}
+      <aside className="hidden md:flex flex-col w-56 bg-white border-r border-gray-200 flex-shrink-0">
+        {/* ロゴ */}
+        <div className="px-5 py-5 border-b border-gray-100">
+          <h1 className="text-lg font-bold text-gray-900 leading-tight">📋 キッチンプランナー</h1>
+          {(family?.name || effectiveDisplayName) && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+              <Users size={11} />
+              <span className="truncate">{family?.name ?? effectiveDisplayName}</span>
+            </div>
+          )}
+        </div>
+
+        {/* ナビゲーション */}
+        <nav className="px-3 pt-4 pb-2 space-y-0.5">
+          {sidebarNav.map(({ id, icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === id
+                  ? id === "recipe"
+                    ? "bg-orange-50 text-orange-600"
+                    : "bg-blue-50 text-blue-700"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              }`}
+            >
+              {icon}{label}
+            </button>
+          ))}
+        </nav>
+
+        {/* クイックアクション */}
+        <div className="px-3 mt-4 pb-2 border-t border-gray-100 pt-4">
+          <p className="px-3 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+            クイックアクション
+          </p>
+          <div className="space-y-0.5">
+            {sidebarActions.map(({ icon, label, onClick }) => (
+              <button
+                key={label}
+                onClick={onClick}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+              >
+                {icon}{label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 設定・ログアウト */}
+        <div className="mt-auto px-3 pb-4 border-t border-gray-100 pt-3 space-y-0.5">
+          {effectiveDisplayName && (
+            <div className="px-3 py-2 text-xs text-gray-500 truncate">{effectiveEmail}</div>
+          )}
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+          >
+            <Settings size={16} />設定
+          </button>
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+          >
+            <LogOut size={16} />ログアウト
+          </button>
+        </div>
+      </aside>
+
+      {/* ══ メインコンテンツ ════════════════════════════════════ */}
+      <div className="flex-1 md:overflow-y-auto md:flex md:flex-col">
+
+        {/* モバイル用ヘッダー（mdより小さい画面のみ） */}
+        <div className="md:hidden px-4 pt-6">
+          <Header
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            familyName={family?.name}
+            userName={effectiveDisplayName ?? undefined}
+          />
+        </div>
+
+        {/* デスクトップ用ページヘッダー */}
+        <div className="hidden md:flex items-center justify-between px-8 py-4 bg-white border-b border-gray-200 flex-shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">
+              {activeTab === "recipe" ? "レシピ" : "在庫管理"}
+            </h2>
+            <p className="text-sm text-gray-400 mt-0.5">
+              {activeTab === "recipe"
+                ? `${recipes.length}件のレシピ`
+                : `${items.length}件の食材`}
+            </p>
+          </div>
+          <div className="flex items-center gap-3 text-sm text-gray-600">
+            {effectiveDisplayName && <span>{effectiveDisplayName}</span>}
+          </div>
+        </div>
 
         {/* スキャン進捗オーバーレイ */}
         {scanProgress && progressLabel && (
@@ -308,9 +353,7 @@ export default function Home() {
               <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <p className="text-gray-700 font-medium">{progressLabel}</p>
               {scanProgress.status === "loading" && (
-                <p className="text-gray-400 text-sm mt-2">
-                  初回のみ日本語データをダウンロードします
-                </p>
+                <p className="text-gray-400 text-sm mt-2">初回のみ日本語データをダウンロードします</p>
               )}
               <div className="mt-4 bg-gray-100 rounded-full h-2">
                 <div
@@ -324,47 +367,44 @@ export default function Home() {
 
         {/* スキャンエラー */}
         {scanError && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center">
+          <div className="mx-4 md:mx-8 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center">
             <p className="text-red-700 text-sm">{scanError}</p>
-            <button
-              onClick={() => setScanError(null)}
-              className="text-red-400 hover:text-red-600 ml-4 flex-shrink-0"
-            >
-              ✕
-            </button>
+            <button onClick={() => setScanError(null)} className="text-red-400 hover:text-red-600 ml-4">✕</button>
           </div>
         )}
 
-        {/* タブ本体 */}
-        {activeTab === "recipe" ? (
-          <RecipeTab
-            familyId={familyId!}
-            recipes={recipes}
-            items={items}
-            onAdd={async (data) => { await fsAddRecipe(familyId!, data); }}
-            onUpdate={(id, data) => fsUpdateRecipe(familyId!, id, data)}
-            onDelete={(id) => fsDeleteRecipe(familyId!, id)}
-            onCook={handleCook}
-          />
-        ) : (
-          <InventoryTab
-            items={items}
-            filteredItems={filteredItems}
-            filters={filters}
-            onFiltersChange={handleFiltersChange}
-            onAddItem={handleAddItem}
-            onEditItem={handleEditItem}
-            onDeleteItem={handleDeleteItem}
-            onConsumeItem={handleConsumeItem}
-            onScanReceipt={handleScanReceipt}
-            onOpenShoppingList={() => setIsShoppingListOpen(true)}
-            onOpenKnownItems={() => setIsKnownItemsOpen(true)}
-          />
-        )}
+        {/* タブコンテンツ */}
+        <main className="flex-1 px-4 pt-4 pb-24 md:px-8 md:pt-8 md:pb-8">
+          {activeTab === "recipe" ? (
+            <RecipeTab
+              familyId={familyId!}
+              recipes={recipes}
+              items={items}
+              onAdd={async (data) => { await fsAddRecipe(familyId!, data); }}
+              onUpdate={(id, data) => fsUpdateRecipe(familyId!, id, data)}
+              onDelete={(id) => fsDeleteRecipe(familyId!, id)}
+              onCook={handleCook}
+            />
+          ) : (
+            <InventoryTab
+              items={items}
+              filteredItems={filteredItems}
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              onAddItem={handleAddItem}
+              onEditItem={handleEditItem}
+              onDeleteItem={handleDeleteItem}
+              onConsumeItem={handleConsumeItem}
+              onScanReceipt={handleScanReceipt}
+              onOpenShoppingList={() => setIsShoppingListOpen(true)}
+              onOpenKnownItems={() => setIsKnownItemsOpen(true)}
+            />
+          )}
+        </main>
       </div>
 
-      {/* ボトムタブナビ */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom z-40">
+      {/* ══ モバイル ボトムナビ（mdより小さい画面のみ） ══════════ */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
         <div className="flex max-w-2xl mx-auto">
           <button
             onClick={() => setActiveTab("recipe")}
@@ -374,8 +414,7 @@ export default function Home() {
                 : "text-gray-400 hover:text-gray-600"
             }`}
           >
-            <ChefHat size={22} />
-            レシピ
+            <ChefHat size={22} />レシピ
           </button>
           <button
             onClick={() => setActiveTab("inventory")}
@@ -385,24 +424,19 @@ export default function Home() {
                 : "text-gray-400 hover:text-gray-600"
             }`}
           >
-            <Package size={22} />
-            在庫
+            <Package size={22} />在庫
           </button>
         </div>
       </nav>
 
-      {/* モーダル類 */}
+      {/* ══ モーダル類 ════════════════════════════════════════════ */}
       {isModalOpen && (
         <ItemModal
           item={editingItem}
           onSave={handleSaveItem}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditingItem(null);
-          }}
+          onClose={() => { setIsModalOpen(false); setEditingItem(null); }}
         />
       )}
-
       {scannedItems && (
         <ReceiptPreviewModal
           items={scannedItems}
@@ -410,26 +444,13 @@ export default function Home() {
           onClose={() => setScannedItems(null)}
         />
       )}
-
       {isKnownItemsOpen && (
-        <KnownItemsModal
-          items={knownItems}
-          onChange={setKnownItems}
-          onClose={() => setIsKnownItemsOpen(false)}
-        />
+        <KnownItemsModal items={knownItems} onChange={setKnownItems} onClose={() => setIsKnownItemsOpen(false)} />
       )}
-
       {isShoppingListOpen && (
-        <ShoppingListModal
-          items={items}
-          onClose={() => setIsShoppingListOpen(false)}
-        />
+        <ShoppingListModal items={items} onClose={() => setIsShoppingListOpen(false)} />
       )}
-
-      {showOnboarding && (
-        <OnboardingModal onClose={() => setShowOnboarding(false)} />
-      )}
-
+      {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
       {isSettingsOpen && family && effectiveUid && (
         <SettingsModal
           user={{
@@ -442,12 +463,8 @@ export default function Home() {
           onClose={() => setIsSettingsOpen(false)}
           onFamilyNameUpdate={(name) => setFamily((f) => f ? { ...f, name } : f)}
           onLeaveFamily={() => {
-            clearCachedFamilyId();
-            setFamilyId(null);
-            setFamily(null);
-            setItems([]);
-            setFamilySearchDone(false);
-            setIsSettingsOpen(false);
+            clearCachedFamilyId(); setFamilyId(null); setFamily(null);
+            setItems([]); setFamilySearchDone(false); setIsSettingsOpen(false);
           }}
           onLogout={logout}
         />
