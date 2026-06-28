@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   ChefHat, Package, Plus, Camera, ShoppingCart, BookMarked, Settings, Users, LogOut,
 } from "lucide-react";
+import AppIcon from "@/components/AppIcon";
 
 const FAMILY_ID_CACHE_KEY = "cached_family_id_v1";
 const loadCachedFamilyId = () => {
@@ -251,9 +252,14 @@ export default function Home() {
       <aside className="hidden md:flex flex-col w-56 bg-white border-r border-gray-200 flex-shrink-0">
         {/* ロゴ */}
         <div className="px-5 py-5 border-b border-gray-100">
-          <h1 className="text-lg font-bold text-gray-900 leading-tight">📋 キッチンプランナー</h1>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+              <AppIcon className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-base font-bold text-gray-900 leading-tight">キッチンプランナー</h1>
+          </div>
           {(family?.name || effectiveDisplayName) && (
-            <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500 pl-0.5">
               <Users size={11} />
               <span className="truncate">{family?.name ?? effectiveDisplayName}</span>
             </div>
